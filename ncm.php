@@ -1,7 +1,6 @@
 <?php
 class NCM {
     public static function dump($path, $dealwithid3 = false) {
-        require_once './aes.php';
         /*准备getid3库*/
         require_once './getid3/getid3.php';
         // Initialize getID3 engine
