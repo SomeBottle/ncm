@@ -1,7 +1,15 @@
 <?php
 class NCM {
-    public static function dump($path) {
+    public static function dump($path, $dealwithid3 = false) {
         require_once './aes.php';
+        /*准备getid3库*/
+        require_once './getid3/getid3.php';
+        // Initialize getID3 engine
+        $getID3 = new getID3;
+        $TaggingFormat = 'UTF-8';
+        $getID3->setOption(array('encoding' => $TaggingFormat));
+        getid3_lib::IncludeDependency(GETID3_INCLUDEPATH . 'write.php', __FILE__, true);
+        $TagData = array();
         require_once './xor.php';
         require_once './hexstr.php';
         $corekey = Hex::hexToStr('687A4852416D736F356B496E62617857');
@@ -67,6 +75,7 @@ class NCM {
             fseek($f, 5, SEEK_CUR); /*不知为啥又跳了五个字节*/
             $imgsize = unpack('I', fread($f, 4)) [1]; /*快速获得图像数据大小*/
             $imgdata = fread($f, $imgsize); /*获得图像数据*/
+            $cover = $metadata['albumPic']; /*获得封面url*/
             $format = $metadata['format']; /*获得格式*/
             $musicname = $metadata['musicName'];
             $file = $musicname . '.' . $format;
@@ -80,6 +89,36 @@ class NCM {
             $content = str_repeat($content, (intval(strlen($maindata) / 256) + 1)); /*兼容略低版本php写法，此处代替bytearray循环push*/
             $content = substr($content, 1, strlen($maindata));
             file_put_contents($file, xor_enc($maindata, $content)); /*异或解密输出文件*/
+            if ($dealwithid3) {
+                $info = $getID3->analyze($file); /*分析输出的音乐*/
+                $previoustag = $info['tags']['id3v2']; /*检索id3 v2数据(此处暂时写死，稍后看是否有更改)*/
+                /*初始化tagwriter*/
+                $tagwriter = new getid3_writetags;
+                $tagwriter->filename = $file; /*指定文件*/
+                $tagwriter->tagformats = array('id3v2.3'); /*指定写入数据模式id3v2*/
+                $tagwriter->overwrite_tags = true; /*覆盖先前的tag(不覆盖有bug，作者快更新啊喂)*/
+                $tagwriter->tag_encoding = $TaggingFormat;
+                $exiftype = exif_imagetype($cover); /*直接通过Url获得封面exiftype*/
+                $APICdata = file_get_contents($cover); /*直接通过url就绪APIC图像数据*/
+                if ($APICdata && $previoustag) { /*数据是否有效*/
+                    $TagData = $previoustag; /*继承先前的id3数据(顺便把备注给去了)*/
+                    $TagData['attached_picture'][0]['data'] = $APICdata;
+                    $TagData['attached_picture'][0]['picturetypeid'] = '0x03'; /*此处不是很清楚，但是0x03可以用*/
+                    $TagData['attached_picture'][0]['description'] = 'cover'; /*封面图片描述*/
+                    $TagData['attached_picture'][0]['mime'] = image_type_to_mime_type($exiftype); /*获得封面mimetype*/
+                    $tagwriter->tag_data = $TagData; /*数据存入tagwriter*/
+                    $process = $tagwriter->WriteTags(); /*写入数据*/
+                    if (!$process) {
+                        echo 'Unable to dump:Failed to write tags!<br>' . implode('<br><br>', $tagwriter->errors);
+                        fclose($f);
+                        exit();
+                    }
+                    if (!empty($tagwriter->warnings)) {
+                        echo 'There were some warnings:<br>' . implode('<br><br>', $tagwriter->warnings);
+                    }
+                }
+            }
+            echo 'Successfully dumped';
         }
         fclose($f);
     }
