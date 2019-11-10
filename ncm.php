@@ -1,6 +1,6 @@
 <?php
 class NCM {
-    public static function dump($path, $dealwithid3 = false) {
+    public static function dump($path, $dealwithid3 = true) {
         /*准备getid3库*/
         require_once './getid3/getid3.php';
         // Initialize getID3 engine
@@ -124,9 +124,13 @@ class NCM {
 }
 /*cmd*/
 if (preg_match("/cli/i", php_sapi_name())) {
-    $param_arr = getopt('f:');
+    $param_arr = getopt('f:c:');
     if (!empty($param_arr['f'])) {
-        NCM::dump($param_arr['f']);
+		if (!empty($param_arr['c'])) {
+            NCM::dump($param_arr['f']);
+		}else{
+			NCM::dump($param_arr['f'],true);
+		}
     }
 }
 ?>
