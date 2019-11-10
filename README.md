@@ -30,7 +30,7 @@
    require 'ncm.php';  
    NCM::dump(<filepath>,<dealwithid3>);  
    ```
-   **<dealwithid3>默认是false,如果为true，会处理封面数据，这一项能很好对付新版失去封面数据的情况.  
+   **<dealwithid3>默认是true,如果为false，不会处理封面数据，开启这一项能很好对付新版失去封面数据的情况.  
    
 ## 跨越的困难  
    在新版PC网易云下载的ncm文件内音乐数据好似不再写入封面图片，php在这方面的库很少，getid3的库文档也不好看.幸亏帮酷论坛那边有人分享，了解之后颇有感觉，终于解决了封面问题.   
